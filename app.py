@@ -4,6 +4,9 @@ import cv2
 import numpy as np
 import mediapipe as mp
 import time
+import os
+import io
+from PIL import Image
 
 tracking_started = False
 ready_start_time = None
@@ -82,6 +85,7 @@ def is_ready_bench_press(landmarks):
                   landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].y]
     left_wrist = [landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].x,
                   landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y]
+
     right_shoulder = [landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,
                       landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y]
     right_elbow = [landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x,
@@ -92,8 +96,9 @@ def is_ready_bench_press(landmarks):
     angle_left = calculate_angle(left_shoulder, left_elbow, left_wrist)
     angle_right = calculate_angle(right_shoulder, right_elbow, right_wrist)
 
-    # Accept ready if both elbows are between 75 and 105 degrees (bar at chest)
-    return 75 <= angle_left <= 105 and 75 <= angle_right <= 105
+    # Expect elbows to be bent when bar is at chest level
+    return 70 <= angle_left <= 110 and 70 <= angle_right <= 110
+
 
 
 def is_ready_deadlift(landmarks):
@@ -184,7 +189,7 @@ def track_squats(landmarks):
 def track_bench_press(landmarks):
     global counter_left, stage_left, counter_right, stage_right
 
-    # LEFT SIDE
+    # LEFT
     left_shoulder = [landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x,
                      landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y]
     left_elbow = [landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].x,
@@ -193,13 +198,13 @@ def track_bench_press(landmarks):
                   landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y]
     angle_left = calculate_angle(left_shoulder, left_elbow, left_wrist)
 
-    if angle_left < 60:
+    if angle_left < 90:
         stage_left = "down"
-    if angle_left > 150 and stage_left == "down":
+    if angle_left > 160 and stage_left == "down":
         stage_left = "up"
         counter_left += 1
 
-    # RIGHT SIDE
+    # RIGHT
     right_shoulder = [landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,
                       landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y]
     right_elbow = [landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value].x,
@@ -208,11 +213,13 @@ def track_bench_press(landmarks):
                    landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y]
     angle_right = calculate_angle(right_shoulder, right_elbow, right_wrist)
 
-    if angle_right < 60:
+    if angle_right < 90:
         stage_right = "down"
-    if angle_right > 150 and stage_right == "down":
+    if angle_right > 160 and stage_right == "down":
         stage_right = "up"
         counter_right += 1
+
+
 
 
 # Rep logic: Deadlift
@@ -248,7 +255,7 @@ def track_shoulder_press(landmarks):
                   landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y]
     angle_left = calculate_angle(left_shoulder, left_elbow, left_wrist)
 
-    if angle_left > 160:
+    if angle_left > 130:
         stage_left = "up"
     if angle_left < 100 and stage_left == "up":
         stage_left = "down"
@@ -263,7 +270,7 @@ def track_shoulder_press(landmarks):
                    landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y]
     angle_right = calculate_angle(right_shoulder, right_elbow, right_wrist)
 
-    if angle_right > 160:
+    if angle_right > 130:
         stage_right = "up"
     if angle_right < 100 and stage_right == "up":
         stage_right = "down"
@@ -436,8 +443,78 @@ def reset_ready():
     tracking_started = False
     return jsonify({'message': 'Ready timer reset'}), 200
 
+@app.route('/process_frame', methods=['POST'])
+def process_frame():
+    global counter_left, counter_right, tracking_enabled, tracking_started, ready_start_time
 
-import os
+    if 'frame' not in request.files:
+        return jsonify({'error': 'No frame uploaded'}), 400
+
+    file = request.files['frame']
+    exercise = request.form.get('exercise', 'bicep_curl')
+
+    # Read image from bytes
+    in_memory_file = io.BytesIO()
+    file.save(in_memory_file)
+    data = np.frombuffer(in_memory_file.getvalue(), dtype=np.uint8)
+    frame = cv2.imdecode(data, cv2.IMREAD_COLOR)
+
+    if frame is None:
+        return jsonify({'error': 'Invalid image data'}), 400
+
+    ready_state = "not_ready"
+
+    with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = pose.process(image)
+
+        if results.pose_landmarks:
+            landmarks = results.pose_landmarks.landmark
+
+            # Ready check
+            ready_func = {
+                'bicep_curl': is_ready_bicep_curl,
+                'squat': is_ready_squat,
+                'bench_press': is_ready_bench_press,
+                'deadlift': is_ready_deadlift,
+                'shoulder_press': is_ready_shoulder_press,
+            }.get(exercise, lambda _: False)
+
+            if tracking_enabled:
+                if ready_func(landmarks):
+                    if ready_start_time is None:
+                        ready_start_time = time.time()
+                        ready_state = "holding"
+                    elif time.time() - ready_start_time >= ready_hold_duration:
+                        tracking_started = True
+                        ready_state = "ready"
+                    else:
+                        ready_state = "holding"
+                else:
+                    if not tracking_started:
+                        ready_start_time = None
+                        ready_state = "not_ready"
+
+                if tracking_started:
+                    tracker_func = {
+                        'bicep_curl': track_bicep_curls,
+                        'squat': track_squats,
+                        'bench_press': track_bench_press,
+                        'deadlift': track_deadlift,
+                        'shoulder_press': track_shoulder_press,
+                    }.get(exercise)
+                    if tracker_func:
+                        tracker_func(landmarks)
+
+    return jsonify({
+        'left': counter_left,
+        'right': counter_right,
+        'ready_state': ready_state
+    })
+
+
+
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
