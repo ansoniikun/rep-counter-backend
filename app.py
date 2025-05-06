@@ -17,7 +17,8 @@ tracking_enabled = True  # Controls whether to track reps
 current_exercise = 'bicep_curl'  # Default exercise
 
 app = Flask(__name__)
-CORS(app, origins=["https://rep-counter-frontend.vercel.app"])
+CORS(app, resources={r"/*": {"origins": "https://rep-counter-frontend.vercel.app"}})
+
 
 # Mediapipe initialization
 mp_drawing = mp.solutions.drawing_utils
