@@ -70,14 +70,24 @@ def is_ready_bicep_curl(landmarks):
     return angle_left > 150 and angle_right > 150
 
 def is_ready_squat(landmarks):
-    hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,
-           landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
-    knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,
-            landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
-    ankle = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x,
-             landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
-    angle = calculate_angle(hip, knee, ankle)
-    return angle > 160
+    left_hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,
+                landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
+    left_knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,
+                 landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
+    left_ankle = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x,
+                  landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
+    right_hip = [landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x,
+                 landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y]
+    right_knee = [landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x,
+                  landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y]
+    right_ankle = [landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x,
+                   landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y]
+
+    angle_left = calculate_angle(left_hip, left_knee, left_ankle)
+    angle_right = calculate_angle(right_hip, right_knee, right_ankle)
+
+    return angle_left > 160 and angle_right > 160
+
 
 def is_ready_bench_press(landmarks):
     left_shoulder = [landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x,
@@ -103,14 +113,24 @@ def is_ready_bench_press(landmarks):
 
 
 def is_ready_deadlift(landmarks):
-    hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,
-           landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
-    knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,
-            landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
-    ankle = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x,
-             landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
-    angle = calculate_angle(hip, knee, ankle)
-    return angle > 160
+    left_hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,
+                landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
+    left_knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,
+                 landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
+    left_ankle = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x,
+                  landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
+    right_hip = [landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x,
+                 landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y]
+    right_knee = [landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x,
+                  landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y]
+    right_ankle = [landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x,
+                   landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y]
+
+    angle_left = calculate_angle(left_hip, left_knee, left_ankle)
+    angle_right = calculate_angle(right_hip, right_knee, right_ankle)
+
+    return angle_left > 160 and angle_right > 160
+
 
 def is_ready_shoulder_press(landmarks):
     left_shoulder = [landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x,
@@ -169,22 +189,40 @@ def track_bicep_curls(landmarks):
 
 # Rep logic: Squats
 def track_squats(landmarks):
-    global counter_left, stage_left
+    global counter_left, stage_left, counter_right, stage_right
 
-    hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,
-           landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
-    knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,
-            landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
-    ankle = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x,
-             landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
+    # Left leg
+    left_hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,
+                landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
+    left_knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,
+                 landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
+    left_ankle = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x,
+                  landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
+    angle_left = calculate_angle(left_hip, left_knee, left_ankle)
 
-    angle = calculate_angle(hip, knee, ankle)
+    # Right leg
+    right_hip = [landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x,
+                 landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y]
+    right_knee = [landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x,
+                  landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y]
+    right_ankle = [landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x,
+                   landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y]
+    angle_right = calculate_angle(right_hip, right_knee, right_ankle)
 
-    if angle > 160:
+    # Track left side
+    if angle_left > 160:
         stage_left = 'up'
-    if angle < 90 and stage_left == 'up':
+    if angle_left < 90 and stage_left == 'up':
         stage_left = 'down'
         counter_left += 1
+
+    # Track right side
+    if angle_right > 160:
+        stage_right = 'up'
+    if angle_right < 90 and stage_right == 'up':
+        stage_right = 'down'
+        counter_right += 1
+
 
 # Rep logic: Bench press
 def track_bench_press(landmarks):
@@ -224,24 +262,41 @@ def track_bench_press(landmarks):
 
 
 # Rep logic: Deadlift
-def track_deadlift(landmarks):
-    global counter_left, stage_left
+def track_deadlifts(landmarks):
+    global counter_left, stage_left, counter_right, stage_right
 
-    # Use the left side of the body to track hip extension
-    hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,
-           landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
-    knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,
-            landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
-    ankle = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x,
-             landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
+    # Left leg
+    left_hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,
+                landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
+    left_knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,
+                 landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
+    left_ankle = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x,
+                  landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
+    angle_left = calculate_angle(left_hip, left_knee, left_ankle)
 
-    angle = calculate_angle(hip, knee, ankle)
+    # Right leg
+    right_hip = [landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x,
+                 landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y]
+    right_knee = [landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x,
+                  landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y]
+    right_ankle = [landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x,
+                   landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y]
+    angle_right = calculate_angle(right_hip, right_knee, right_ankle)
 
-    if angle > 160:
-        stage_left = "up"
-    if angle < 90 and stage_left == "up":
-        stage_left = "down"
+    # Track left leg motion
+    if angle_left > 160:
+        stage_left = 'up'
+    if angle_left < 90 and stage_left == 'up':
+        stage_left = 'down'
         counter_left += 1
+
+    # Track right leg motion
+    if angle_right > 160:
+        stage_right = 'up'
+    if angle_right < 90 and stage_right == 'up':
+        stage_right = 'down'
+        counter_right += 1
+
 
 # Rep logic: shoulder press
 def track_shoulder_press(landmarks):
@@ -401,12 +456,13 @@ def gen_frames():
 def video_feed():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-@app.route('/reps')
+@app.route('/reps', methods=['GET'])
 def get_reps():
     return jsonify({
         'left': counter_left,
         'right': counter_right
     })
+
 
 @app.route('/reset', methods=['POST'])
 def reset_reps():
