@@ -262,7 +262,7 @@ def track_bench_press(landmarks):
 
 
 # Rep logic: Deadlift
-def track_deadlifts(landmarks):
+def track_deadlift(landmarks):
     global counter_left, stage_left, counter_right, stage_right
 
     # Left leg
